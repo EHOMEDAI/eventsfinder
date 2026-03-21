@@ -41,5 +41,7 @@ If you want to override the default values, set environment variables before sta
 
 LOCAL_DB_PASSWORD=your_password LOCAL_DB_NAME=eventsfinder_demo pnpm local:start
 Demo Accounts
+
 Administrator: admin@eventsfinder.local / Password123!
+
 Regular user: user@eventsfinder.local / Password123!
