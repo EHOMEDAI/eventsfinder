@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AccountRoleName {
+  USER
+  ADMIN
+  ORGANIZER
+}
+
+enum EventSource {
+  INTERNAL
+  EXTERNAL
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILED
+}
+
+model Account {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  displayName  String
+  phone        String?
+  status       AccountStatus  @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  roles        AccountRole[]
+  favourites   Favourite[]
+  bookings     Booking[]
+}
+
+model Role {
+  id        String        @id @default(cuid())
+  name      AccountRoleName @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  accounts  AccountRole[]
+}
+
+model AccountRole {
+  id        String   @id @default(cuid())
+  accountId String
+  roleId    String
+  createdAt DateTime @default(now())
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, roleId])
+}
+
+model Event {
+  id              String      @id @default(cuid())
+  title           String
+  description     String      @db.Text
+  bannerUrl       String?
+  category        String
+  venue           String
+  address         String
+  city            String
+  startsAt        DateTime
+  endsAt          DateTime
+  isFree          Boolean     @default(true)
+  price           Decimal?    @db.Decimal(10, 2)
+  source          EventSource @default(INTERNAL)
+  sourceName      String?
+  externalEventId String?
+  lastSyncedAt    DateTime?
+  status          EventStatus @default(PUBLISHED)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  favourites      Favourite[]
+  bookings        Booking[]
+
+  @@index([category, startsAt, status])
+  @@unique([sourceName, externalEventId])
+}
+
+model Favourite {
+  id        String   @id @default(cuid())
+  accountId String
+  eventId    String
+  createdAt DateTime @default(now())
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, eventId])
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  accountId  String
+  eventId    String
+  status     BookingStatus @default(CONFIRMED)
+  bookedAt   DateTime      @default(now())
+  cancelledAt DateTime?
+  account    Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  event      Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, eventId])
+}
+
+model ApiIntegration {
+  id          String    @id @default(cuid())
+  provider    String    @unique
+  enabled     Boolean   @default(false)
+  baseUrl     String?
+  apiKey      String?
+  lastSyncAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  syncLogs    SyncLog[]
+}
+
+model SyncLog {
+  id               String      @id @default(cuid())
+  integrationId    String
+  status           SyncStatus
+  message          String      @db.Text
+  importedCount    Int         @default(0)
+  syncedAt         DateTime    @default(now())
+  integration      ApiIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}
